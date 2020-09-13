@@ -20,6 +20,13 @@ def index(request):
 def clean(csv_file):
     return
 
+#useful for allowing files that have periods in the name before an extension
+def getName(strArr):
+    name = ''
+    for i in range(0, len(strArr) - 2):
+        name = name + i 
+    return name
+
 def formhtml(request):
     #user just landed for the first time so show them the upload html
     if request.method == "GET":
@@ -28,36 +35,31 @@ def formhtml(request):
     #in the html called the uploaded file 'file'
     csv_file = request.FILES['file']
 
-    #if the input is a log file then change it to a csv file extension
-    if csv_file.name.endswith('.log'):
-        name, csv_data = convert_to_csv(csv_file)
-        print("----------------------------------------")
-        print(name)
-        with open(name + ".csv", "w") as csv_file:
-            csv_file.write(csv_data)
-        #need to get the name when the file is called
-        #have to get a way to convert this csv_file into an actual file
-        #it isnt csv file yet just like a giant string 
+    #if we need to get the name of the file for organization reasons
+    csv_file_string = csv_file.name.split('.') #array of the title of the uploaded file
+    csv_file_name = getName(csv_file_string)
+    df = None #need to declare the dataframe varaible so i can load it in the if
 
-    #if its not a csv by now then it was neither a csv or log to begin with so error
-    if not csv_file.name.endswith('.csv'):
-        messages.error(request, 'Please provide a csv file')
-    
-    #pandas processing to extract parameters
-    df = pd.read_csv(csv_file)
-    filtered_list = df[['Latitude', 'Longitude', 'Total Water Column (m)',
+    #need seperate statements because need to specify delimiter with log file
+    if csv_file.name.endswith('.log'):
+        df = pd.read_csv(csv_file, delimiter=';')
+        filtered_list = df[['Latitude', 'Longitude', 'Total Water Column (m)',
             'Temperature (c)', 'pH', 'ODO mg/L', 'Salinity (ppt)',
             'Turbid+ NTU', 'BGA-PC cells/mL']]
-    print(filtered_list) #just a check
-    latitude = filtered_list['Latitude']
-    return HttpResponse(latitude[0])
+        #print(filtered_list) #just a check
+        latitude = filtered_list['Latitude']
+        print(df)
+        return HttpResponse(latitude[0])
 
-#work in progress to convert log to csv
-def convert_to_csv(log_file):
-    fileName = str(log_file.name)
-    pre = os.path.splitext(fileName)[0]
-    print(pre)
-    df = pd.read_csv(log_file ,delimiter=';')
-    csv_file_out = df.to_csv()
-    return pre, csv_file_out
-    
+    elif csv_file.name.endswith('.csv'):
+        df = pd.read_csv(csv_file)
+        filtered_list = df[['Latitude', 'Longitude', 'Total Water Column (m)',
+            'Temperature (c)', 'pH', 'ODO mg/L', 'Salinity (ppt)',
+            'Turbid+ NTU', 'BGA-PC cells/mL']]
+        #print(filtered_list) #just a check
+        latitude = filtered_list['Latitude']
+        print(df)
+        return HttpResponse(latitude[0])
+
+    else:
+        messages.error(request, 'Please provide a .log or .csv formatted file')
